@@ -70,6 +70,10 @@ const ReactServer = function (clientDirStatic) {
         return new ServerError(code, message);
     }
 
+    this.redirect = function(url) {
+        return new Redirect(url);
+    }
+
     /**
      * start the server on the specified port
      * 
