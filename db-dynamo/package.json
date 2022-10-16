@@ -1,0 +1,13 @@
+{
+    "name": "@apiserver/db-dynamo",
+    "version": "1.0.0",
+    "description": "A NodeJS module for Dynamo DB support",
+    "main": "index.js",
+    "author": "Don Boulia <djboulia@gmail.com>",
+    "license": "MIT",
+    "dependencies": {
+        "aws-sdk": "^2.1202.0",
+        "uuid": "^8.3.2"
+    }
+  }
+  

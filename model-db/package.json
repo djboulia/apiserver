@@ -1,0 +1,11 @@
+{
+    "name": "@apiserver/model-db",
+    "version": "1.0.0",
+    "description": "A NodeJS module for a databse backed model",
+    "main": "index.js",
+    "author": "Don Boulia <djboulia@gmail.com>",
+    "license": "MIT",
+    "dependencies": {
+    }
+  }
+  
