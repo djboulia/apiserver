@@ -9,20 +9,32 @@ const ModelExplorer = require('./modelexplorer');
  * @param {String} staticDir local path for serving static files
  */
 const ModelServer = function (basePath, staticDir) {
+    // core react server handling functions
+    const reactServer = new ReactServer(staticDir);
+    const explorer = new ModelExplorer();
+
+    let globalAuthFn = undefined;
+
     const swagger = {
         explorer: false
     };
 
-    // core react server handling functions
-    const reactServer = new ReactServer(staticDir);
-
-    const explorer = new ModelExplorer();
-
-    this.enableExplorer = function(name, path, protocols) {
+    this.enableExplorer = function (name, path, protocols) {
         swagger.explorer = true;
         swagger.name = name;
         swagger.path = path;
         swagger.protocols = protocols;
+    }
+
+    /**
+     * set a global authorization handler for all API calls
+     * individual methods can override this by supplyin their own
+     * authorization function on the mtehod call
+     * 
+     * @param {Function} fn function to be called for authentication
+     */
+    this.auth = function( fn ) {
+        globalAuthFn = fn;
     }
 
     /**
@@ -69,24 +81,9 @@ const ModelServer = function (basePath, staticDir) {
             modelServer.addCrudMethods(modelName, modelNamePlural, model);
         }
 
-        model.method = function (path, verb, metadata, method) {
-            modelServer.method(modelName, modelNamePlural, model, path, verb, metadata, method);
+        model.method = function (path, verb, metadata, fn, authFn) {
+            modelServer.method(modelName, modelNamePlural, model, path, verb, metadata, fn, authFn);
         }
-    }
-
-    /**
-     * internal method handler.  automatically 
-     * appends the basePath (e.g. api/Models)
-     * to all requests
-     * 
-     * @param {String} modelApiName -  
-     * @param {String} path 
-     * @param {String} verb 
-     * @param {Function} fn 
-     */
-    const serverMethod = function (modelApiName, path, verb, fn) {
-        const fullPath = `${basePath}/${modelApiName}${path}`;
-        return reactServer.method(fullPath, verb, fn);
     }
 
     /**
@@ -390,12 +387,47 @@ const ModelServer = function (basePath, staticDir) {
                     result.push(context.body);
                     break;
 
+                case 'session':
+                    // return the current session as a parameter
+                    // note that this won't be shown as a parameter in
+                    // the explorer since it's supplied by the framework
+                    // automatically
+                    result.push(context.session);
+                    break;
+
                 default:
                     throw new Error(`invalid source type ${arg.source}`);
             }
         }
 
         return result;
+    }
+
+    /**
+     * internal method handler.  automatically 
+     * appends the basePath (e.g. api/Models)
+     * to all requests
+     * 
+     * @param {String} modelApiName -  
+     * @param {String} path 
+     * @param {String} verb 
+     * @param {Function} fn 
+     * @param {Function} fnAuth optional auth function
+     */
+    const serverMethod = function (modelApiName, path, verb, fn, fnAuth) {
+        const fullPath = `${basePath}/${modelApiName}${path}`;
+
+        // wrap the authorization handler with an internal function so that
+        // globalAuthFn isn't evaluated before the API call is made
+        const authHandler = async function(context) {
+            const fn = fnAuth || globalAuthFn;
+
+            if (!fn) return true;   // no auth handler
+
+            return await fn(context);
+        }
+    
+        return reactServer.method(fullPath, verb, fn, authHandler);
     }
 
     /**
@@ -406,9 +438,12 @@ const ModelServer = function (basePath, staticDir) {
      * @param {String} path 
      * @param {String} verb 
      * @param {Object} metadata descriptions about the method, its arguments, etc. (see above)
-     * @param {Function} method function to call with params
+     * @param {Function} fn function to call with params
+     * @param {Function} fnAuth function to call for authorization
+     *                          if not supplied, the global auth handler will be called
      */
-    this.method = function (modelName, modelApiName, model, path, verb, metadata, method) {
+    this.method = function (modelName, modelApiName, model, path, verb, metadata, fn, fnAuth) {
+        
         const params = metadata.params;
 
         const handler = async function (context) {
@@ -417,14 +452,14 @@ const ModelServer = function (basePath, staticDir) {
 
             // console.log('calling methodParams handler with args ', args);
 
-            const result = await method(...args);
+            const result = await fn(...args);
             return result;
         }
 
         // register this method with our explorer
         explorer.addMethod(modelName, modelApiName, model, path, verb, metadata);
 
-        serverMethod(modelApiName, path, verb, handler);
+        serverMethod(modelApiName, path, verb, handler, fnAuth);
     }
 }
 

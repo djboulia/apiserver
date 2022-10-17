@@ -6,6 +6,7 @@
     "author": "Don Boulia <djboulia@gmail.com>",
     "license": "MIT",
     "dependencies": {
-        "@apiserver/reactserver": "file:../reactserver"
+        "@apiserver/reactserver": "file:../reactserver",
+        "uuid": "^8.3.2"
     }
 }

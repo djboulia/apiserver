@@ -20,6 +20,17 @@ const appInit = function () {
         modelServer.listen(port);
     }
 
+    /**
+     * set an authorization function to be invoked before a model's REST APIs
+     * are called.  if the function throws an error or returns false, 
+     * the API method will not be called.  if it returns true, auth is succesful
+     * 
+     * @param {Function} fn authorization function which receives a context object
+     */
+    app.auth = function( fn ) {
+        modelServer.auth(fn);
+    }
+
     app.addModel = function (baseModel, modelExtender) {
         const modelName = baseModel.getModelName();
 

@@ -8,6 +8,7 @@ const swaggerUi = require('swagger-ui-express');
 
 const ServerError = require('./lib/servererror');
 const Redirect = require('./lib/redirect');
+const { Server } = require('http');
 
 var JsonResponse = function (res) {
     this.send = function (obj) {
@@ -66,11 +67,11 @@ const initExpress = function (clientDirStatic) {
 const ReactServer = function (clientDirStatic) {
     const app = initExpress(clientDirStatic);
 
-    this.serverError = function(code, message) {
+    this.serverError = function (code, message) {
         return new ServerError(code, message);
     }
 
-    this.redirect = function(url) {
+    this.redirect = function (url) {
         return new Redirect(url);
     }
 
@@ -121,7 +122,7 @@ const ReactServer = function (clientDirStatic) {
         };
 
         app.use(path,
-            function (req, res, next) {                 
+            function (req, res, next) {
                 // dynamically set the host, http/https for the swagger doc
                 // if options are specified, they override the default
                 const protocols = options.protocols || [req.protocol];
@@ -138,22 +139,12 @@ const ReactServer = function (clientDirStatic) {
     }
 
     /**
-     * We don't do anything here at the moment, but we might want to initialize
-     * user data later.
-     * 
-     * @param {Object} session 
-     */
-    this.login = function (session) {
-        return true;
-    }
-
-    /**
      * Kills any current session data, effectively resetting user state
      * 
      * @param {Object} session 
      * @returns true if the session was destroyed
      */
-    this.logout = function (session) {
+    this.reset = function (session) {
 
         return new Promise(function (resolve, reject) {
             if (session) {
@@ -173,12 +164,12 @@ const ReactServer = function (clientDirStatic) {
         // errors are processed as 500 errors with a message
         if (e instanceof ServerError) {
             console.log(`DEBUG: ${method} caught error ${e.code}: ${e.message}`);
-            response.error(e.code, e.message);
+            response.error(e.code, e);
         }
         else if (e instanceof Error) {
             console.log(`DEBUG: ${method} caught error: ${e.message}`);
             console.log(`DEBUG: ${e.stack}`);
-            response.error(500, e.message);
+            response.error(500, e);
         } else {
             // if it's not an error object, just return the raw error
             console.log(`DEBUG: ${method} caught error:`, e);
@@ -189,8 +180,28 @@ const ReactServer = function (clientDirStatic) {
     /**
      * call the registered function and process the result
      */
-    const callFn = async function (fn, jsonResponse, req, res) {
-        const result = await fn({ session: req.session, query: req.query, params: req.params, body: req.body });
+    const callFn = async function (fn, authFn, jsonResponse, req, res) {
+        const context = { session: req.session, query: req.query, params: req.params, body: req.body }
+
+        // if authFn is supplied, we check it for a positive result before
+        // calling fn.  if an error is thrown from the auth function or it 
+        // retuns a non-true value, we exit without calling fn
+        if (authFn) {
+            const result = await authFn(context)
+                .catch((e) => {
+                    processError(`auth function `, jsonResponse, e);
+                })
+
+            if (!result) {
+                console.log('auth failed for: ', fn);
+
+                const e = new ServerError(401, 'Authentication Failed');
+                processError(`auth function `, jsonResponse, e);
+                return;
+            }
+        }
+
+        const result = await fn(context);
 
         // if result is an instance of a special object (like a redirect)
         // we handle that here.  Otherwise we assume it's a JSON response and
@@ -207,127 +218,39 @@ const ReactServer = function (clientDirStatic) {
     }
 
     /**
-     * Do all the pre and post processing from the raw express function to our 
-     * higher level functions.  The idea is to allow the functions to focus on 
-     * taking an action and returning a JSON result.  
-     * The supplied fn will be get access to session
-     * and query data.  By default, the function will return a  
-     * Javascript object that will be turned into JSON to send back.  Some
-     * special objects can be returned instead of JSON to handle other cases
-     * where a result isn't being returned.  A redirect is the most common example.
-     * In those cases, the fn just returns a redirect object, which will then be
-     * processed by this function.
-     * 
-     * @param {String} path 
-     * @param {Function} fn user supplied function that will received a context object
-     */
-    const getMethod = function (path, fn) {
-
-        const handler = function (req, res) {
-            const jsonResponse = new JsonResponse(res);
-
-            // call the function supplied and process the result
-            console.log(`DEBUG: GET handler for ${path} called.`);
-
-            callFn(fn, jsonResponse, req, res)
-                .catch((e) => {
-                    processError('getMethod', jsonResponse, e);
-                });
-        }
-
-        // register this path with our handler function to wrap the user function
-        app.get(path, handler);
-    }
-
-    const deleteMethod = function (path, fn) {
-
-        const handler = function (req, res) {
-            const jsonResponse = new JsonResponse(res);
-
-            // call the function supplied and process the result
-            console.log(`DEBUG: DELETE handler for ${path} called.`);
-
-            callFn(fn, jsonResponse, req, res)
-                .catch((e) => {
-                    processError('deleteMethod', jsonResponse, e);
-                })
-        }
-
-        // register this path with our handler function to wrap the user function
-        app.delete(path, handler);
-    }
-
-    /**
-     * Do all the pre and post processing from the raw express function to our 
-     * higher level functions.  The idea is to allow the functions to focus on 
-     * taking an action and returning a JSON result.  
-     * The supplied fn will be get access to session
-     * and query data.  By default, the function will return a  
-     * Javascript object that will be turned into JSON to send back.  Some
-     * special objects can be returned instead of JSON to handle other cases
-     * where a result isn't being returned.  A redirect is the most common example.
-     * In those cases, the fn just returns a redirect object, which will then be
-     * processed by this function.
-     * 
-     * @param {String} path 
-     * @param {Function} fn user supplied function that will received a context object
-     */
-    const postMethod = function (path, fn) {
-
-        const handler = function (req, res) {
-            const jsonResponse = new JsonResponse(res);
-
-            // call the function supplied and process the result
-            console.log(`DEBUG: POST handler for ${path} called.`);
-
-            callFn(fn, jsonResponse, req, res)
-                .catch((e) => {
-                    processError('postMethod', jsonResponse, e);
-                })
-        }
-
-        // register this path with our handler function to wrap the user function
-        app.post(path, handler);
-    }
-
-    const putMethod = function (path, fn) {
-
-        const handler = function (req, res) {
-            const jsonResponse = new JsonResponse(res);
-
-            // call the function supplied and process the result
-            console.log(`DEBUG: PUT handler for ${path} called.`);
-
-            callFn(fn, jsonResponse, req, res)
-                .catch((e) => {
-                    processError('putMethod', jsonResponse, e);
-                })
-        }
-
-        // register this path with our handler function to wrap the user function
-        app.put(path, handler);
-    }
-
-    /**
      * main function for defining REST methods for this server
      * 
      * @param {String} path path for this method
      * @param {String} verb GET, POST (for now)
      * @param {Function} fn function called when this method is invoked
+     * @param {Function} authFn optional authentication function to validate before calling fn
      */
-    this.method = function (path, verb, fn) {
+    this.method = function (path, verb, fn, authFn) {
+
+        const handler = function (req, res) {
+            const jsonResponse = new JsonResponse(res);
+
+            // call the function supplied and process the result
+            console.log(`DEBUG: ${verb} handler for ${path} called.`);
+
+            callFn(fn, authFn, jsonResponse, req, res)
+                .catch((e) => {
+                    processError(`${verb} method`, jsonResponse, e);
+                })
+        }
+
         switch (verb.toUpperCase()) {
             case 'GET':
-                return getMethod(path, fn);
+                return app.get(path, handler);
 
             case 'POST':
-                return postMethod(path, fn);
+                return app.post(path, handler);
 
             case 'PUT':
-                return putMethod(path, fn);
+                return app.put(path, handler);
 
             case 'DELETE':
-                return deleteMethod(path, fn);
+                return app.delete(path, handler);
 
             default:
                 throw new Error(`invalid verb ${verb} supplied to method`)
