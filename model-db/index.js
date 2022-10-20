@@ -36,6 +36,11 @@ const DbModel = function( db, modelName, modelNamePlural ) {
         return result;   
     }
 
+    this.findByFields = async function(fields) {
+        const result = await db.findByFields(modelName, fields);
+        return result;   
+    }
+
     this.findAll = async function() {
         const result = await db.findAll(modelName);
         return result;   

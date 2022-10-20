@@ -114,6 +114,11 @@ const ModelServer = function (basePath, staticDir) {
             }
         }
 
+        const findByFields = async function (fields) {
+            const result = await model.findByFields(fields);
+            return result;
+        }
+
         const findAll = async function () {
             const result = await model.findAll();
             return result;
@@ -171,7 +176,7 @@ const ModelServer = function (basePath, staticDir) {
                 responses: [
                     {
                         code: 200,
-                        description: "An array containing  model objects"
+                        description: "An array containing model objects"
                     }
                 ],
                 params: [
@@ -226,6 +231,31 @@ const ModelServer = function (basePath, staticDir) {
                 ]
             },
             put);
+
+        // register this method with our explorer
+        this.method(
+            modelName,
+            modelApiName,
+            model,
+            '/findByFields',
+            'POST',
+            {
+                description: "Search this model for a matching set of fields",
+                responses: [
+                    {
+                        code: 200,
+                        description: "An array containing model objects"
+                    }
+                ],
+                params: [
+                    {
+                        name: 'fields',
+                        source: 'body',
+                        type: 'object'
+                    }
+                ]
+            },
+            findByFields);
 
         this.method(
             modelName,

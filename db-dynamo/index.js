@@ -23,6 +23,16 @@
      // which provides connectivity between the app and the db instance
      const client = new AWS.DynamoDB.DocumentClient();
  
+     /**
+      * Create a new object in the database.  Format will be:
+      * id: unique id
+      * className: the className supplied
+      * attributes: the user data for this object
+      * 
+      * @param {String} className 
+      * @param {Object} attributes the data for this object
+      * @returns the object created
+      */
      this.create = function (className, attributes) {
          return new Promise((resolve, reject) => {
              const obj = {};
@@ -47,6 +57,12 @@
          });
      }
  
+     /**
+      * Update an existing object in the database
+      * 
+      * @param {Object} obj 
+      * @returns the object updated
+      */
      this.put = function (obj) {
  
          return new Promise((resolve, reject) => {
@@ -72,6 +88,12 @@
          });
      }
  
+     /**
+      * Find a set of objects by their identifiers
+      * 
+      * @param {Array} ids the list of ids to search for
+      * @returns an array of objects
+      */
      this.findByIds = function (ids) {
          return new Promise((resolve, reject) => {
  
@@ -104,6 +126,12 @@
          });
      }
  
+     /**
+      * Find an object in the database by its id
+      * 
+      * @param {String} key the id to search for
+      * @returns an object
+      */
      this.findById = function (key) {
  
          return new Promise((resolve, reject) => {
@@ -129,7 +157,13 @@
              });
          });
      }
- 
+
+     /**
+      * Find all objects of the specified className
+      * 
+      * @param {String} className 
+      * @returns an array of objects
+      */
      this.findAll = function (className) {
          return new Promise((resolve, reject) => {
              const params = {
@@ -153,6 +187,17 @@
          });
      }
  
+     /**
+      * Search the class for a specific attributes containing
+      * exactly the value specified.  For instance, to search for all
+      * records where admin = true, fields would be { "admin" : true }
+      * To search for a specific username attribute, 
+      * use { "username" : "djboulia@gmail.com"}
+      * 
+      * @param {String} className 
+      * @param {Object} fields object properties will be the fields to match object value
+      * @returns an array of objects that match
+      */
      this.findByFields = function (className, fields) {
 
         let filterExpression = "className = :className";
@@ -194,6 +239,12 @@
         });
     }
 
+    /**
+     * Deletes an object in the database matching the id
+     * 
+     * @param {String} key the id of the object 
+     * @returns true if successful, false otherwise
+     */
     this.deleteById = function (key) {
  
          return new Promise((resolve, reject) => {
