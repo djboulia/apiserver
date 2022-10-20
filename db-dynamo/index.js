@@ -153,7 +153,48 @@
          });
      }
  
-     this.deleteById = function (key) {
+     this.findFields = function (className, fields) {
+
+        let filterExpression = "className = :className";
+        let expressionAttributeValues = { ':className' : className };
+
+        return new Promise((resolve, reject) => {
+
+            for (var name in fields) {
+                if (fields.hasOwnProperty(name)) {
+                    const filterName = `:${name}`;
+
+                    filterExpression += ` AND attributes.${name} = ${filterName}`;
+                    expressionAttributeValues[filterName] = fields[name];
+                }
+            }
+
+            // console.log('filter :', filterExpression);
+            // console.log('expresssion: ', expressionAttributeValues);
+
+            const params = {
+                TableName: tableName,
+                FilterExpression: filterExpression,
+                ExpressionAttributeValues: expressionAttributeValues
+            };
+
+        
+            client.scan(params, (err, data) => {
+                if (err) {
+                    console.log(err);
+                    reject(err);
+                } else {
+                    var items = [];
+                    for (var i in data.Items)
+                        items.push(data.Items[i]);
+
+                    resolve(items);
+                }
+            });
+        });
+    }
+
+    this.deleteById = function (key) {
  
          return new Promise((resolve, reject) => {
  
