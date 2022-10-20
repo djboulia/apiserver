@@ -153,7 +153,7 @@
          });
      }
  
-     this.findFields = function (className, fields) {
+     this.findByFields = function (className, fields) {
 
         let filterExpression = "className = :className";
         let expressionAttributeValues = { ':className' : className };
