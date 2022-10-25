@@ -1,0 +1,11 @@
+{
+    "name": "@apiserver/db-file",
+    "version": "1.0.0",
+    "description": "A NodeJS module for a file based DB support",
+    "main": "index.js",
+    "author": "Don Boulia <djboulia@gmail.com>",
+    "license": "MIT",
+    "dependencies": {
+    }
+  }
+  
