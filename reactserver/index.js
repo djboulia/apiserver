@@ -189,11 +189,10 @@ const ReactServer = function (clientDirStatic) {
         if (authFn) {
             const result = await authFn(context)
                 .catch((e) => {
-                    processError(`auth function `, jsonResponse, e);
+                    console.log('auth failed for: ', fn);
                 })
 
             if (!result) {
-                console.log('auth failed for: ', fn);
 
                 const e = new ServerError(401, 'Authentication Failed');
                 processError(`auth function `, jsonResponse, e);
