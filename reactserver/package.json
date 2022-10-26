@@ -1,7 +1,7 @@
 {
-    "name": "@apiserver/modelserver",
+    "name": "@apiserver/reactserver",
     "version": "1.0.0",
-    "description": "A NodeJS module for API Server implmenetation",
+    "description": "A NodeJS module for a React Server implmenetation",
     "main": "index.js",
     "author": "Don Boulia <djboulia@gmail.com>",
     "license": "MIT",
