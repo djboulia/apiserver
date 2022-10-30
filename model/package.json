@@ -1,0 +1,11 @@
+{
+    "name": "@apiserver/model",
+    "version": "1.0.0",
+    "description": "A NodeJS module for a base model class",
+    "main": "index.js",
+    "author": "Don Boulia <djboulia@gmail.com>",
+    "license": "MIT",
+    "dependencies": {
+    }
+  }
+  
