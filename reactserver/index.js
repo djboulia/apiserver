@@ -43,10 +43,17 @@ var HtmlResponse = function (res) {
  * @param {String} clientDirStatic directory for client static files
  * @returns an initialized express app
  */
-const initExpress = function (clientDirStatic) {
+const initExpress = function (clientDirStatic, corsSites) {
     const app = express();
 
-    app.use(cors())
+    if (corsSites) {
+        app.use(cors({
+            origin: corsSites,
+            credentials: true
+        }))    
+    } else {
+        app.use(cors());
+    }
 
     app.use(express.static(clientDirStatic))
         .use(cookieParser())
@@ -64,8 +71,8 @@ const initExpress = function (clientDirStatic) {
     return app;
 }
 
-const ReactServer = function (clientDirStatic) {
-    const app = initExpress(clientDirStatic);
+const ReactServer = function (clientDirStatic, corsSites) {
+    const app = initExpress(clientDirStatic, corsSites);
 
     this.serverError = function (code, message) {
         return new ServerError(code, message);

@@ -8,9 +8,9 @@ const ModelExplorer = require('./modelexplorer');
  * @param {String} basePath base path for all API calls
  * @param {String} staticDir local path for serving static files
  */
-const ModelServer = function (basePath, staticDir) {
+const ModelServer = function (basePath, staticDir, corsSites) {
     // core react server handling functions
-    const reactServer = new ReactServer(staticDir);
+    const reactServer = new ReactServer(staticDir, corsSites);
     const explorer = new ModelExplorer();
 
     let globalAuthFn = undefined;

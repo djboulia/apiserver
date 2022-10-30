@@ -8,8 +8,8 @@ const appInit = function () {
     const app = {
     };
 
-    app.path = function (baseUrl, staticDir) {
-        modelServer = new ModelServer(baseUrl,staticDir);
+    app.path = function (baseUrl, staticDir, corsSites) {
+        modelServer = new ModelServer(baseUrl,staticDir, corsSites);
     }
 
     app.explorer = function(name, path, protocols) {
