@@ -37,7 +37,7 @@ const DbModel = function( db, modelName, modelNamePlural ) {
     }
 
     this.findByFields = async function(fields) {
-        const result = await db.findByFields(modelName, fields);
+        const result = await db.findByFields(fields);
         return result;   
     }
 
