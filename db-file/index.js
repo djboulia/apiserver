@@ -14,8 +14,19 @@ const FileDB = function (path, className) {
 
     const filename = path + '/' + className + '.json';
 
-    const rawdata = fs.readFileSync(filename);
-    let contents = JSON.parse(rawdata);
+    const loadFile = function(filename) {
+        const exists = fs.existsSync(filename);
+
+        if (exists) {
+            const rawdata = fs.readFileSync(filename);
+            return JSON.parse(rawdata);    
+        } else {
+            // file doesn't exist, create an empty db
+            return [];
+        }    
+    }
+
+    let contents = loadFile(filename);
     // console.log(contents);
 
     const writeFile = function (filename, contents) {
@@ -45,7 +56,7 @@ const FileDB = function (path, className) {
             }
         }
 
-        console.log('found match: ', record);
+        // console.log('found match: ', record);
         return true;
     }
 
@@ -53,7 +64,7 @@ const FileDB = function (path, className) {
         for (let i = 0; i < records.length; i++) {
             const record = records[i];
 
-            if (record._id === id) {
+            if (record.id === id) {
                 return record;
             }
         }
@@ -98,7 +109,7 @@ const FileDB = function (path, className) {
             const id = now.getTime().toString();
 
             const entry = JSON.parse(JSON.stringify(entryData));
-            entry._id = id;
+            entry.id = id;
             entry.class = className;
 
             console.log('creating ' + JSON.stringify(entry));
@@ -130,7 +141,7 @@ const FileDB = function (path, className) {
             for (let i = 0; i < contents.length; i++) {
                 const entry = contents[i];
 
-                if (entry._id === updateEntry._id) {
+                if (entry.id === updateEntry.id) {
                     contents[i] = JSON.parse(JSON.stringify(updateEntry));
 
                     rewriteDB(contents)
@@ -145,7 +156,7 @@ const FileDB = function (path, className) {
                 }
             }
 
-            reject('could not find id ' + updateEntry._id);
+            reject('could not find id ' + updateEntry.id);
         })
     }
 
@@ -184,7 +195,7 @@ const FileDB = function (path, className) {
             for (let i = 0; i < contents.length; i++) {
                 const entry = contents[i];
 
-                if (entry._id === id) {
+                if (entry.id === id) {
                     resolve(JSON.parse(JSON.stringify(entry))); // return a copy
                     return;
                 }
@@ -200,9 +211,10 @@ const FileDB = function (path, className) {
         })
     };
 
-
-    this.findFields = function (fields) {
+    this.findByFields = function (fields) {
         const self = this;
+
+        // console.log('looking for fields: ', fields);
 
         return new Promise((resolve, reject) => {
 
@@ -224,6 +236,38 @@ const FileDB = function (path, className) {
                 .catch((e) => {
                     reject(e);
                 })
+        });
+    }
+
+    /**
+     * Deletes an object in the database matching the id
+     * 
+     * @param {String} key the id of the object 
+     * @returns true if successful, false otherwise
+     */
+    this.deleteById = function (key) {
+
+        return new Promise((resolve, reject) => {
+
+            for (let i = 0; i < contents.length; i++) {
+                const entry = contents[i];
+
+                if (entry.id === key) {
+                    contents.splice(i, 1);
+
+                    rewriteDB(contents)
+                        .then((result) => {
+                            resolve(true);
+                        })
+                        .catch((e) => {
+                            reject(e);
+                        })
+
+                    return;
+                }
+            }
+
+            reject(false);
         });
     }
 }
