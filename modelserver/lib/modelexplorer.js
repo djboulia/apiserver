@@ -69,7 +69,8 @@ const ModelExplorer = function () {
             }
 
             obj.properties[name] = {
-                "type": property.type
+                "type": property.type,
+                "enum": property.enum
             }
         }
 
