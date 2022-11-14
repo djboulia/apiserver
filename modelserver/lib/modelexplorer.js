@@ -96,7 +96,7 @@ const ModelExplorer = function () {
                             "name": param.name,
                             "in": "path",
                             "description": "",
-                            "required": true,
+                            "required": !(param.optional === true),
                             "type": param.type
                         });
                     break;
@@ -107,7 +107,7 @@ const ModelExplorer = function () {
                             "name": param.name,
                             "in": "query",
                             "description": "",
-                            "required": true,
+                            "required": !(param.optional === true),
                             "type": param.type
                         });
                     break;
@@ -117,7 +117,7 @@ const ModelExplorer = function () {
                         "name": param.name,
                         "in": "body",
                         "description": "",
-                        "required": true,
+                        "required": !(param.optional === true),
                         "type": param.type
                     }
 
