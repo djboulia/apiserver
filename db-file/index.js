@@ -8,11 +8,11 @@ const fs = require('fs');
  * database.  NOT meant for production environments!
  * 
  * @param {String} path 
- * @param {String} className 
+ * @param {String} tableName 
  */
-const FileDB = function (path, className) {
+const FileDB = function (path, tableName) {
 
-    const filename = path + '/' + className + '.json';
+    const filename = path + '/' + tableName + '.json';
 
     const loadFile = function(filename) {
         const exists = fs.existsSync(filename);
@@ -101,9 +101,10 @@ const FileDB = function (path, className) {
      * entryData as the fields for this record, adding a
      * unique identifier as part of the creation process.
      * 
-     * @param {Object} entryData 
+     * @param {String} className - create a new instance of this class in the table 
+     * @param {Object} entryData - data to create
      */
-    this.create = function (entryData) {
+    this.create = function (className, entryData) {
         return new Promise((resolve, reject) => {
             const now = new Date();
             const id = now.getTime().toString();
@@ -136,12 +137,20 @@ const FileDB = function (path, className) {
      * 
      * @param {Object} updateEntry 
      */
-    this.put = function (updateEntry) {
+    this.put = function (className, updateEntry) {
         return new Promise((resolve, reject) => {
             for (let i = 0; i < contents.length; i++) {
                 const entry = contents[i];
 
                 if (entry.id === updateEntry.id) {
+
+                    if (entry.class != className) {
+                        const msg = `put: ids match but ${className} not equal to entry class ${entry.class}`;
+                        console.error(msg);
+                        reject(msg);
+                        return;
+                    }
+
                     contents[i] = JSON.parse(JSON.stringify(updateEntry));
 
                     rewriteDB(contents)
@@ -165,11 +174,11 @@ const FileDB = function (path, className) {
      * 
      * @param {Array} ids an array of ids to search for
      */
-    this.findByIds = function (ids) {
+    this.findByIds = function (className, ids) {
         const self = this;
 
         return new Promise((resolve, reject) => {
-            self.findAll()
+            self.findAll(className)
                 .then((records) => {
                     const results = [];
 
@@ -188,14 +197,14 @@ const FileDB = function (path, className) {
         })
     }
 
-    this.findById = function (id) {
+    this.findById = function (className, id) {
         return new Promise((resolve, reject) => {
             const result = [];
 
             for (let i = 0; i < contents.length; i++) {
                 const entry = contents[i];
 
-                if (entry.id === id) {
+                if (entry.id === id && entry.class === className) {
                     resolve(JSON.parse(JSON.stringify(entry))); // return a copy
                     return;
                 }
@@ -205,13 +214,23 @@ const FileDB = function (path, className) {
         })
     }
 
-    this.findAll = function () {
+    this.findAll = function (className) {
         return new Promise((resolve, reject) => {
-            resolve(JSON.parse(JSON.stringify(contents))); // return a copy
+            const items = JSON.parse(JSON.stringify(contents));
+            const results = [];
+
+            for (let i=0; i< items.length; i++) {
+                const item = items[i];
+
+                if (item.class === className) {
+                    results.push(item);
+                }
+            }
+            resolve(results); 
         })
     };
 
-    this.findByFields = function (fields) {
+    this.findByFields = function (className, fields) {
         const self = this;
 
         // console.log('looking for fields: ', fields);
@@ -220,7 +239,7 @@ const FileDB = function (path, className) {
 
             const matches = [];
 
-            self.findAll()
+            self.findAll(className)
                 .then((results) => {
 
                     for (let i = 0; i < results.length; i++) {
@@ -245,14 +264,14 @@ const FileDB = function (path, className) {
      * @param {String} key the id of the object 
      * @returns true if successful, false otherwise
      */
-    this.deleteById = function (key) {
+    this.deleteById = function (className, key) {
 
         return new Promise((resolve, reject) => {
 
             for (let i = 0; i < contents.length; i++) {
                 const entry = contents[i];
 
-                if (entry.id === key) {
+                if (entry.id === key && entry.class === className) {
                     contents.splice(i, 1);
 
                     rewriteDB(contents)

@@ -4,272 +4,150 @@
  * Object Model in a Dynamo Database
  * 
  */
- const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid');
 
- // import the aws sdk to use the dynamodb
- // libraries in the app
- const AWS = require('aws-sdk');
- 
- const DynamoModel = function (credentials, tableName) {
-     // update the region to 
-     // where dynamodb is hosted
-     AWS.config.update({
-         region: "us-east-1",
-         accessKeyId: credentials.accessKeyId,
-         secretAccessKey: credentials.secretAccessKey
-     });
- 
-     // create a new dynamodb client
-     // which provides connectivity between the app and the db instance
-     const client = new AWS.DynamoDB.DocumentClient();
- 
-     /**
-      * Create a new object in the database.  Format will be:
-      * id: unique id
-      * className: the className supplied
-      * attributes: the user data for this object
-      * 
-      * @param {String} className 
-      * @param {Object} attributes the data for this object
-      * @returns the object created
-      */
-     this.create = function (className, attributes) {
-         return new Promise((resolve, reject) => {
-             const obj = {};
- 
-             obj.id = uuidv4();
-             obj.className = className;
-             obj.attributes = attributes;
- 
-             const params = {
-                 TableName: tableName,
-                 Item: obj
-             };
- 
-             client.put(params, (err, data) => {
-                 if (err) {
-                     console.error("Unable to add item. Error JSON:", JSON.stringify(err, null, 2));
-                     reject(err);
-                 } else {
-                     resolve(obj);
-                 }
-             });
-         });
-     }
- 
-     /**
-      * Update an existing object in the database
-      * 
-      * @param {Object} obj 
-      * @returns the object updated
-      */
-     this.put = function (obj) {
- 
-         return new Promise((resolve, reject) => {
-             // validate that we have the necessary parameters
-             if (!obj || !obj.id || !obj.className || !obj.attributes) {
-                 reject('put: invalid object: ', obj);
-                 return;
-             }
- 
-             const params = {
-                 TableName: tableName,
-                 Item: obj
-             };
- 
-             client.put(params, (err, data) => {
-                 if (err) {
-                     console.error("Unable to add item. Error JSON:", JSON.stringify(err, null, 2));
-                     reject(err);
-                 } else {
-                     resolve(obj);
-                 }
-             });
-         });
-     }
- 
-     /**
-      * Find a set of objects by their identifiers
-      * 
-      * @param {Array} ids the list of ids to search for
-      * @returns an array of objects
-      */
-     this.findByIds = function (ids) {
-         return new Promise((resolve, reject) => {
- 
-             const idObject = {};
-             let index = 0;
-             ids.forEach(function (value) {
-                 index++;
-                 const idKey = ":idvalue" + index;
-                 idObject[idKey.toString()] = value;
-             });
- 
-             const params = {
-                 TableName: tableName,
-                 FilterExpression: "id IN (" + Object.keys(idObject).toString() + ")",
-                 ExpressionAttributeValues: idObject
-             };
- 
-             client.scan(params, (err, data) => {
-                 if (err) {
-                     console.log(err);
-                     reject(err);
-                 } else {
-                     var items = [];
-                     for (var i in data.Items)
-                         items.push(data.Items[i]);
- 
-                     resolve(items);
-                 }
-             });
-         });
-     }
- 
-     /**
-      * Find an object in the database by its id
-      * 
-      * @param {String} key the id to search for
-      * @returns an object
-      */
-     this.findById = function (key) {
- 
-         return new Promise((resolve, reject) => {
- 
-             const params = {
-                 TableName: tableName,
-                 Key: {
-                     'id': key
-                 }
-             };
- 
-             client.get(params, (err, data) => {
-                 if (err) {
-                     console.log(err);
-                     reject(err);
-                 } else {
-                     // var items = [];
-                     // for (var i in data.Items)
-                     //     items.push(data.Items[i]);
- 
-                     resolve(data.Item);
-                 }
-             });
-         });
-     }
+// import the aws sdk to use the dynamodb
+// libraries in the app
+const DBImpl = require('./lib/dbimpl');
 
-     /**
-      * Find all objects of the specified className
-      * 
-      * @param {String} className 
-      * @returns an array of objects
-      */
-     this.findAll = function (className) {
-         return new Promise((resolve, reject) => {
-             const params = {
-                 TableName: tableName,
-                 FilterExpression: "className = :className",
-                 ExpressionAttributeValues: { ':className': className }
-             };
- 
-             client.scan(params, (err, data) => {
-                 if (err) {
-                     console.log(err);
-                     reject(err);
-                 } else {
-                     var items = [];
-                     for (var i in data.Items)
-                         items.push(data.Items[i]);
- 
-                     resolve(items);
-                 }
-             });
-         });
-     }
- 
-     /**
-      * Search the class for a specific attributes containing
-      * exactly the value specified.  For instance, to search for all
-      * records where admin = true, fields would be { "admin" : true }
-      * To search for a specific username attribute, 
-      * use { "username" : "djboulia@gmail.com"}
-      * 
-      * @param {String} className 
-      * @param {Object} fields object properties will be the fields to match object value
-      * @returns an array of objects that match
-      */
-     this.findByFields = function (className, fields) {
+const DynamoModel = function (credentials, tableName) {
 
-        let filterExpression = "className = :className";
-        let expressionAttributeValues = { ':className' : className };
+    const db = new DBImpl(credentials, tableName);
 
-        return new Promise((resolve, reject) => {
+    /**
+     * the backend database stores multiple models in one table, using
+     * the special className field to classify different models.  the
+     * id field uniquely identifies each model in the table.  all user
+     * data for the record is stored in the "attributes" field like this:
+     * {
+     *      id: xxx
+     *      className:
+     *      attributes: {
+     *          modelData1: 'foo', 
+     *          modelData2: 'bar'
+     *      }
+     * }
+     * 
+     * this class implements a single model representing the data
+     * we don't want to expose classNme or attributes, so we simply
+     * return the attributes data and insert the "id" field into it.
+     * so flatten model takes the structure above and converts it to:
+     * 
+     * {
+     *      id: xxx
+     *      modelData1: 'foo',
+     *      modelData2: 'bar'
+     * }
+     * 
+     * @param {*} dbObj db model data to flatten
+     */
+    const flattenModel = function (dbObj) {
+        const attributes = dbObj.attributes;
+        if (attributes) {
+            attributes.id = dbObj.id;
+        }
 
-            for (var name in fields) {
-                if (fields.hasOwnProperty(name)) {
-                    const filterName = `:${name}`;
-
-                    filterExpression += ` AND attributes.${name} = ${filterName}`;
-                    expressionAttributeValues[filterName] = fields[name];
-                }
-            }
-
-            // console.log('filter :', filterExpression);
-            // console.log('expresssion: ', expressionAttributeValues);
-
-            const params = {
-                TableName: tableName,
-                FilterExpression: filterExpression,
-                ExpressionAttributeValues: expressionAttributeValues
-            };
-
-        
-            client.scan(params, (err, data) => {
-                if (err) {
-                    console.log(err);
-                    reject(err);
-                } else {
-                    var items = [];
-                    for (var i in data.Items)
-                        items.push(data.Items[i]);
-
-                    resolve(items);
-                }
-            });
-        });
+        return attributes;
     }
 
     /**
-     * Deletes an object in the database matching the id
+     * for methods that return an array of records, 
+     * flatten each one and return 
      * 
-     * @param {String} key the id of the object 
-     * @returns true if successful, false otherwise
+     * @param {Array} items an array of db records
+     * @returns an array of flattened db records
      */
-    this.deleteById = function (key) {
- 
-         return new Promise((resolve, reject) => {
- 
-             const params = {
-                 TableName: tableName,
-                 Key: {
-                     'id': key
-                 }
-             };
- 
-             client.delete(params, (err, data) => {
-                 if (err) {
-                     console.log(err);
-                     reject(err);
-                 } else {
-                     resolve(true);
-                 }
-             });
-         });
-     }
- }
- 
- module.exports = DynamoModel;
- 
- 
- 
- 
+    const flattenArray = function (items) {
+        if (!items || items.length === 0) {
+            return [];
+        }
+
+        const result = [];
+
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+
+            result.push(flattenModel(item));
+        }
+
+        return result;
+    }
+
+    const copy = function (obj) {
+        return JSON.parse(JSON.stringify(obj));
+    }
+
+    /**
+     * for the put operation, we need to restore the flattened data
+     * to the format the backend database will recognize, e.g.
+     * 
+     * { 
+     *      id:
+     *      className:
+     *      attributes: {}
+     * }
+     * 
+     * @param {*} obj flattened model data
+     * @returns dbObj
+     */
+    const restoreModel = function (className, obj) {
+        const id = obj.id;
+
+        // remove the id field from the object before passing it
+        // to the back end database since the dbObj has its own id field
+        const attributes = copy(obj);
+        delete attributes.id;
+
+        const dbObj = {
+            id: obj.id,
+            className: className,
+            attributes: attributes
+        }
+
+        return dbObj;
+    }
+
+    this.create = async function (className, data) {
+        const obj = restoreModel(className, data);
+        const result = await db.create(className, obj);
+        return flattenModel(result);
+    }
+
+    this.put = async function (className, data) {
+        const obj = restoreModel(className, data);
+        console.log('put object: ', obj);
+
+        const result = await db.put(className, obj);
+        return flattenModel(result);
+    }
+
+    this.findByIds = async function (className, ids) {
+        const results = await db.findByIds(className, ids);
+        return flattenArray(results);   
+    }
+
+    this.findById = async function (className, id) {
+        const result = await db.findById(className, id);
+        return flattenModel(result);
+    }
+
+    this.findAll = async function (className) {
+        const results = await db.findAll(className);
+        return flattenArray(results);   
+    }
+
+    this.findByFields = async function (className, fields) {
+        const results = await db.findByFields(className, fields);
+        return flattenArray(results);   
+    }
+
+    this.deleteById = async function (className, id) {
+        const result = await db.deleteById(className, id);
+        return result;
+    }
+}
+
+module.exports = DynamoModel;
+
+
+
