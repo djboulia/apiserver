@@ -109,7 +109,7 @@ const DynamoModel = function (credentials, tableName) {
 
     this.create = async function (className, data) {
         const obj = restoreModel(className, data);
-        const result = await db.create(className, obj);
+        const result = await db.create(className, obj.attributes);
         return flattenModel(result);
     }
 
