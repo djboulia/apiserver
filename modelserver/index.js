@@ -20,6 +20,10 @@ const appInit = function () {
         modelServer.listen(port);
     }
 
+    app.serverError = function(code, message) {
+        return modelServer.serverError(code, message);
+    }
+
     /**
      * set an authorization function to be invoked before a model's REST APIs
      * are called.  if the function throws an error or returns false, 

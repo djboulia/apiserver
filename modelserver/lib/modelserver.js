@@ -37,6 +37,10 @@ const ModelServer = function (basePath, staticDir, corsSites) {
         globalAuthFn = fn;
     }
 
+    this.serverError = function (code, message) {
+        return reactServer.serverError(code, message);
+    }
+
     /**
      * Call this to hang an API explorer endpoint at the supplied
      * path.  This will provide a UI for accessing all of the API 
